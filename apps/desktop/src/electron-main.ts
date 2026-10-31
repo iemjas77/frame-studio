@@ -32,6 +32,7 @@ app.whenReady().then(async () => {
     const r = await dialog.showOpenDialog(win, { properties: ['openFile', 'openDirectory', 'multiSelections'] });
     return r.canceled ? [] : r.filePaths.filter((p) => path.isAbsolute(p));
   });
+  setInterval(() => { try { if (host?.session.dirty) host.autosave(); } catch { /* surfaced via host.log */ } }, 60_000).unref();
   await win.loadURL(host.url);
   if (process.env.FS_EXIT_AFTER_LOAD === '1') { console.log('FRAME_STUDIO_ELECTRON_READY ' + origin); }
 });
