@@ -1,6 +1,19 @@
 import { Frac, Rate } from '@fs/timeline-model';
 import { clipWithinSource } from './bounds.ts';
-import type { ProjectDoc, Track } from './types.ts';
+import type { Clip, MediaRef, ProjectDoc, Sequence, Track } from './types.ts';
+
+/**
+ * Source-bounds checks use exact bigint math, which dominates validation cost on long timelines. State objects are deeply frozen and
+ * structurally shared by the command engine, so an unchanged clip keeps its identity: memoise the result per (clip, media, sequence rate).
+ */
+const boundsMemo = new WeakMap<Clip, WeakMap<MediaRef, { rate: string; ok: boolean }>>();
+function withinSource(c: Clip, s: Sequence, m: MediaRef): boolean {
+  const frozen = Object.isFrozen(c) && Object.isFrozen(m); const key = `${s.rate.num}/${s.rate.den}`;
+  if (frozen) { const hit = boundsMemo.get(c)?.get(m); if (hit && hit.rate === key) return hit.ok; }
+  const ok = clipWithinSource(c, s, m);
+  if (frozen) { let inner = boundsMemo.get(c); if (!inner) boundsMemo.set(c, (inner = new WeakMap())); inner.set(m, { rate: key, ok }); }
+  return ok;
+}
 
 export interface Issue { severity: 'error' | 'warning'; code: string; path: string; message: string }
 
@@ -51,7 +64,7 @@ export function validateProject(p: ProjectDoc): Issue[] {
         if (!c.speed || c.speed.num === 0 || c.speed.den <= 0) { err('clip.speed', cp, 'invalid speed'); return; }
         const m = p.mediaPool[c.mediaId];
         if (!m) err('ref.media', cp, `unknown media ${c.mediaId}`);
-        else if (!clipWithinSource(c, s, m)) err('clip.sourcebounds', cp, 'clip references source outside the media duration (or media lacks the stream)');
+        else if (!withinSource(c, s, m)) err('clip.sourcebounds', cp, 'clip references source outside the media duration (or media lacks the stream)');
         if (c.linkGroupId) { const a = linkMembers.get(c.linkGroupId) ?? []; a.push({ sp: cp, c }); linkMembers.set(c.linkGroupId, a); }
       });
     });

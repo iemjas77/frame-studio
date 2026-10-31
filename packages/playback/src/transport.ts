@@ -12,6 +12,8 @@ export class Transport {
   state: TransportState = 'paused'; speed = 1; direction: 1 | -1 = 1; generation = 0;
   private anchorFrame = 0; private anchorMs = 0; private lastPresented = -1; private presentedCount = 0; dropped = 0;
   constructor(private o: TransportOptions) { this.anchorMs = o.now(); }
+  /** Supply the loop range (or null) the transport wraps within while playing. */
+  setLoopProvider(fn: () => { start: number; end: number } | null): void { this.o = { ...this.o, loop: fn }; }
   private rawFrame(): number {
     if (this.state !== 'playing') return this.anchorFrame;
     const dtMs = this.o.now() - this.anchorMs;

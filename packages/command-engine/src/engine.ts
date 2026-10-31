@@ -25,7 +25,7 @@ export class CommandEngine {
   private cleanMarker = 0; private seq = 0; // position in history considered "saved"
   private readonly maxEntries: number; private readonly maxCost: number; private readonly newTxId: () => string;
   constructor(initial: ProjectDoc, private opts: EngineOptions = {}) {
-    this._state = initial; this.maxEntries = opts.maxHistoryEntries ?? 500; this.maxCost = opts.maxHistoryCost ?? 4_000_000; this.newTxId = opts.idSource ?? randomUUID;
+    this._state = initial; this.maxEntries = opts.maxHistoryEntries ?? 500; this.maxCost = opts.maxHistoryCost ?? 60_000_000; this.newTxId = opts.idSource ?? randomUUID;
   }
   get state(): ProjectDoc { return this._state; }
   get revision(): number { return this._revision; }
@@ -41,7 +41,8 @@ export class CommandEngine {
 
   private run(base: ProjectDoc, cmd: Command, txId: string) {
     const ctx = new Ctx(txId);
-    const [next, patches, inverse] = produceWithPatches(base, (d) => { applyCommand(d as ProjectDoc, cmd, ctx); assertInvariants(d as ProjectDoc); });
+    const [next, patches, inverse] = produceWithPatches(base, (d) => { applyCommand(d as ProjectDoc, cmd, ctx); });
+    assertInvariants(next as ProjectDoc); // validated on the frozen result (so unchanged clips hit the validation memo); throwing here leaves state untouched
     return { next, patches, inverse, ctx };
   }
   private push(e: HistoryEntry) {

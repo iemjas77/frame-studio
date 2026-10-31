@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import * as fs from 'node:fs'; import * as os from 'node:os'; import * as path from 'node:path';
 import { FPS, time, rate, NORMAL_SPEED } from '@fs/timeline-model';
-import { makeProject, makeSequence, validateProject, serializeProject, parseProject, ProjectFormatError, hasErrors,
-  relativeTo, resolveRelative, candidatePaths, makePathRef, canonicalJson, type ProjectDoc, type MediaRef } from '../src/index.ts';
-import { saveProjectAtomic, writeAutosave, listAutosaves, openProjectWithRecovery, journalStart, journalAppend, journalRead } from '../src/node.ts';
+import { makeProject, makeSequence, validateProject, hasErrors,
+  relativeTo, resolveRelative, candidatePaths, makePathRef, type ProjectDoc, type MediaRef } from '../src/index.ts';
+import { serializeProject, parseProject, ProjectFormatError, canonicalJson, saveProjectAtomic, writeAutosave, listAutosaves, openProjectWithRecovery, journalStart, journalAppend, journalRead } from '../src/node.ts';
 
 const media = (id = 'm1'): MediaRef => ({ id, name: 'a.mp4', binId: null, path: { absolute: '/media/a.mp4' }, fingerprint: { size: 1, headHash: 'h', tailHash: 't' },
   video: { codec: 'h264', width: 1920, height: 1080, rate: FPS.f25, duration: time(250, FPS.f25), rotation: 0, par: { num: 1, den: 1 }, colour: {} },

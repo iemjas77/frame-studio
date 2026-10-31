@@ -6,6 +6,7 @@ export default defineConfig({
     '@fs/timeline-model': r('./packages/timeline-model/src/index.ts'),
     '@fs/project-model/node': r('./packages/project-model/src/node.ts'),
     '@fs/project-model': r('./packages/project-model/src/index.ts'),
+    '@fs/command-engine/node': r('./packages/command-engine/src/session.ts'),
     '@fs/command-engine': r('./packages/command-engine/src/index.ts'),
     '@fs/media-contracts': r('./packages/media-contracts/src/index.ts'),
     '@fs/media-services': r('./packages/media-services/src/index.ts'),

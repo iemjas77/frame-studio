@@ -4,6 +4,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { ParseResult, ProjectFormatError, parseProject, serializeProject } from './serialize.ts';
 import type { ProjectDoc } from './types.ts';
+export * from './serialize.ts';
 
 export interface FsHooks { /** test seam: called between phases of a save */ beforeRename?: () => void }
 

@@ -55,3 +55,17 @@ describe('frame decode', () => {
   }, 60_000);
   it('waveform peaks reflect audio level and are bounded', async () => { const w = await waveformPeaks(fx.A!, 100); expect(w.peaks.length).toBeLessThanOrEqual(100); expect(Math.max(...w.peaks)).toBeGreaterThan(0.05); expect(w.durationSec).toBeGreaterThan(9.9); }, 30_000);
 });
+
+describe('relink identity (acceptance 5 support)', () => {
+  it('identical copy under another name/place is accepted; same-named different file is refused; re-wrapped file needs confirmation', async () => {
+    const { assessIdentity } = await import('../src/index.ts');
+    const ref = toMediaRef(await probeMedia(fx.A!), 'm', dir);
+    const copy = path.join(dir, 'renamed copy.mp4'); fs.copyFileSync(fx.A!, copy);
+    expect((assessIdentity(ref, await probeMedia(copy))).verdict).toBe('identical');
+    expect(assessIdentity(ref, await probeMedia(fx.B!)).verdict).toBe('mismatch');       // different fps/duration
+    const rewrapped = path.join(dir, 'A_25fps_10s.mkv'); (await import('node:child_process')).execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', fx.A!, '-c', 'copy', rewrapped]);
+    const v = assessIdentity(ref, await probeMedia(rewrapped)); expect(v.verdict).toBe('likely'); expect(v.reasons[0]).toMatch(/confirm/);
+    const sameNameOther = path.join(dir, 'sub'); fs.mkdirSync(sameNameOther); const imposter = path.join(sameNameOther, 'A_25fps_10s.mp4'); fs.copyFileSync(fx.H!, imposter);
+    expect(assessIdentity(ref, await probeMedia(imposter)).verdict).toBe('mismatch');   // H is 6 s: duration differs although the file name matches
+  }, 60_000);
+});

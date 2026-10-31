@@ -1,0 +1,115 @@
+{
+ "machine": {
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "cores": 4,
+  "memGB": 16,
+  "node": "v22.23.4",
+  "os": "Linux 6.18.44-fc-v185",
+  "gpu": "none (cloud container)",
+  "note": "software only; fixtures are 640x360 synthetic H.264"
+ },
+ "clips_200": {
+  "buildMsTotal": 416,
+  "insertMs": {
+   "n": 20,
+   "p50": 12.89,
+   "p95": 27.79,
+   "max": 27.79
+  },
+  "splitMs": {
+   "n": 20,
+   "p50": 2.46,
+   "p95": 3.58,
+   "max": 3.58
+  },
+  "rippleDeleteMs": {
+   "n": 20,
+   "p50": 9.87,
+   "p95": 29.26,
+   "max": 29.26
+  },
+  "undoMs": {
+   "n": 20,
+   "p50": 4.49,
+   "p95": 9.79,
+   "max": 9.79
+  },
+  "serializeMs": 17.6,
+  "parseValidateMs": 6.4,
+  "fileKB": 190
+ },
+ "clips_2000": {
+  "buildMsTotal": 27355,
+  "insertMs": {
+   "n": 20,
+   "p50": 93.26,
+   "p95": 146.14,
+   "max": 146.14
+  },
+  "splitMs": {
+   "n": 20,
+   "p50": 22.48,
+   "p95": 33.11,
+   "max": 33.11
+  },
+  "rippleDeleteMs": {
+   "n": 20,
+   "p50": 108.85,
+   "p95": 158.67,
+   "max": 158.67
+  },
+  "undoMs": {
+   "n": 20,
+   "p50": 43.04,
+   "p95": 71.66,
+   "max": 71.66
+  },
+  "serializeMs": 63.5,
+  "parseValidateMs": 45.3,
+  "fileKB": 1727
+ },
+ "decode": {
+  "oneShotColdSeekMs": {
+   "n": 5,
+   "p50": 98.74,
+   "p95": 105.64,
+   "max": 105.64
+  },
+  "sequentialStartupMs": 148,
+  "sequentialNextFrameMs": {
+   "n": 60,
+   "p50": 1.58,
+   "p95": 3.54,
+   "max": 3.66
+  },
+  "sequentialRestartSeekMs": {
+   "n": 4,
+   "p50": 152.66,
+   "p95": 178.96,
+   "max": 178.96
+  },
+  "clip": "C: 640x360 long-GOP B-frames 29.97"
+ },
+ "hostFrameApi": {
+  "sequentialMs": {
+   "n": 80,
+   "p50": 1.89,
+   "p95": 5.25,
+   "max": 91.41
+  },
+  "randomSeekMs": {
+   "n": 5,
+   "p50": 99.27,
+   "p95": 114.21,
+   "max": 114.21
+  },
+  "achievableFpsSequential": 307.7
+ },
+ "export": {
+  "frames": 300,
+  "seconds": 2.68,
+  "fpsIncludingValidation": 111.9,
+  "clips": 6,
+  "ok": true
+ }
+}

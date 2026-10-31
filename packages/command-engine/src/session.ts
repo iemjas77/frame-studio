@@ -1,7 +1,7 @@
 /** Node-only: an engine bound to a project file with journal, autosave and crash recovery. */
 import * as fs from 'node:fs';
-import { ProjectDoc, checksumOf, makeProject } from '@fs/project-model';
-import { Recovered, journalAppend, journalClear, journalRead, journalStart, openProjectWithRecovery, saveProjectAtomic, writeAutosave } from '@fs/project-model/node';
+import { ProjectDoc, makeProject } from '@fs/project-model';
+import { checksumOf, Recovered, journalAppend, journalClear, journalRead, journalStart, openProjectWithRecovery, saveProjectAtomic, writeAutosave } from '@fs/project-model/node';
 import { Command } from './commands.ts';
 import { CommandEngine, EngineOptions } from './engine.ts';
 

@@ -4,13 +4,18 @@
   "version": "0.1.0",
   "license": "UNLICENSED",
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:e2e": "node tests/e2e/run.mjs",
     "fixtures": "node --experimental-strip-types tests/fixtures/generate.ts",
-    "build:editor": "vite build apps/editor"
+    "build:editor": "vite build apps/editor",
+    "build": "node scripts/build-host.mjs && vite build apps/editor",
+    "start": "npm run build && electron apps/desktop/dist/electron-main.cjs",
+    "start:host": "npm run build && node apps/desktop/dist/host.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
@@ -24,6 +29,9 @@
     "immer": "^10.1.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "playwright": "*"
-  }
+    "playwright": "*",
+    "electron": "^33.0.0",
+    "esbuild": "*"
+  },
+  "main": "apps/desktop/dist/electron-main.cjs"
 }
