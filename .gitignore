@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.fstudio-cache/
+*.tmp
+tests/fixtures/generated/
+test-results/
