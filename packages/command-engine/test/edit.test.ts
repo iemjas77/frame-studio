@@ -190,3 +190,28 @@ describe('lift / ripple delete / gap / move / link', () => {
   it('media.remove refuses when in use', () => { const { e } = setup(); ins(e, 'B', 0); throwsCode(() => e.execute({ type: 'media.remove', mediaId: 'B' }), 'MediaInUse'); e.execute({ type: 'media.remove', mediaId: 'A' }); });
 });
 void rate;
+
+describe('rolling edit / slide', () => {
+  const abut = () => { const x = setup(); ins(x.e, 'A', 0, { sourceIn: time(50, FPS.f25), sourceOut: time(100, FPS.f25) }); ovw(x.e, 'A', 50, { sourceIn: time(120, FPS.f25), sourceOut: time(170, FPS.f25) }); ovw(x.e, 'B', 100, { sourceIn: time(10, FPS.f25), sourceOut: time(60, FPS.f25) }); return x; };
+  it('rolling moves the cut, keeps total span and sync, uses handles, undoes exactly', () => {
+    const { e, seq } = abut(); const before = e.state; const [l] = seq().videoTracks[0]!.clips;
+    e.execute({ type: 'edit.rolling', sequenceId: 's1', leftClipId: l!.id, delta: 10 });
+    const c = seq().videoTracks[0]!.clips; expect(c.map((x) => [x.start, x.duration, x.sourceIn.ticks])).toEqual([[0, 60, 50], [60, 40, 130], [100, 50, 10]]); assertSynced(seq()); assertValid(e.state);
+    expect(seq().audioTracks[0]!.clips.map((x) => [x.start, x.duration])).toEqual([[0, 60], [60, 40], [100, 50]]);        // linked audio rolled too
+    e.undo(); expect(e.state).toEqual(before);
+    throwsCode(() => e.execute({ type: 'edit.rolling', sequenceId: 's1', leftClipId: l!.id, delta: -60 }), 'InvalidArgument');
+    throwsCode(() => e.execute({ type: 'edit.rolling', sequenceId: 's1', leftClipId: l!.id, delta: 71 }), 'InvalidArgument');      // would shrink the right clip below one frame
+    throwsCode(() => e.execute({ type: 'edit.rolling', sequenceId: 's1', leftClipId: seq().videoTracks[0]!.clips[1]!.id, delta: -11 }), 'InsufficientHandle');   // third clip's source starts at frame 10: rolling its head back 11 runs out of media
+  });
+  it('rolling across a gap is refused; locked tracks refused', () => {
+    const { e, seq } = setup(); ins(e, 'B', 0); ovw(e, 'B', 150); throwsCode(() => e.execute({ type: 'edit.rolling', sequenceId: 's1', leftClipId: seq().videoTracks[0]!.clips[0]!.id, delta: 5 }), 'InvalidArgument');
+    const x = abut(); x.e.execute({ type: 'track.set', sequenceId: 's1', trackId: 's1_V1', patch: { locked: true } }); throwsCode(() => x.e.execute({ type: 'edit.rolling', sequenceId: 's1', leftClipId: x.seq().videoTracks[0]!.clips[0]!.id, delta: 5 }), 'LockedTrack');
+  });
+  it('slide moves the middle clip while neighbours absorb it; source of the slid clip is unchanged; needs both neighbours', () => {
+    const { e, seq } = abut(); const mid = seq().videoTracks[0]!.clips[1]!;
+    e.execute({ type: 'edit.slide', sequenceId: 's1', clipId: mid.id, delta: -8 });
+    expect(seq().videoTracks[0]!.clips.map((x) => [x.start, x.duration, x.sourceIn.ticks])).toEqual([[0, 42, 50], [42, 50, 120], [92, 58, 2]]); assertSynced(seq()); assertValid(e.state);
+    throwsCode(() => e.execute({ type: 'edit.slide', sequenceId: 's1', clipId: seq().videoTracks[0]!.clips[0]!.id, delta: 3 }), 'InvalidArgument');
+    throwsCode(() => e.execute({ type: 'edit.slide', sequenceId: 's1', clipId: seq().videoTracks[0]!.clips[1]!.id, delta: -41 }), 'InsufficientHandle');   // third clip head would need source before frame 0
+  });
+});

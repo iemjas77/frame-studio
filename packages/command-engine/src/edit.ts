@@ -359,3 +359,43 @@ export function trimLimits(seq: Sequence, media: MediaRef, clip: Clip, edge: 'st
   const prev = ripple ? -Infinity : Math.max(0, ...track.clips.filter((c) => endOf(c) <= clip.start).map(endOf));
   return { min: Math.max(prev, ripple ? clip.start - Math.max(0, framesBackward) : clip.start - Math.max(0, framesBackward)), max: endOf(clip) - 1 };
 }
+
+/** Neighbour on the same track that touches `clip` exactly (no gap). */
+const touching = (t: Track, clip: Clip, side: 'prev' | 'next'): Clip | undefined => t.clips.find((o) => (side === 'next' ? o.start === endOf(clip) : endOf(o) === clip.start) && o !== clip);
+
+/**
+ * Rolling edit: move the cut between `leftClipId` and the clip that touches its end by `delta` frames.
+ * Total span is unchanged; nothing else moves. Linked clips whose own cut touches are rolled by the same delta.
+ */
+export function rollingEdit(e: Edit, leftClipId: Id, delta: number, ignoreLinks?: boolean): void {
+  if (!Number.isSafeInteger(delta) || delta === 0) fail('InvalidArgument', 'rolling edit needs a non-zero integer delta');
+  const lead = findClip(e.seq, leftClipId); if (!touching(lead.track, lead.clip, 'next')) fail('InvalidArgument', 'the clip has no directly adjacent clip to roll against (there is a gap)');
+  let lo = Infinity, hi = 0;
+  for (const m of expandLinked(e.seq, [leftClipId], ignoreLinks).map((c) => findClip(e.seq, c.id))) {
+    const R = touching(m.track, m.clip, 'next'); if (!R) { if (m.clip === lead.clip) continue; continue; }
+    assertUnlocked(m.track, 'rolling edit'); const L = m.clip;
+    if (L.duration + delta < 1 || R.duration - delta < 1) fail('InvalidArgument', 'rolling edit would make a clip shorter than one frame', { clipId: L.id });
+    const cutNew = endOf(L) + delta; R.sourceIn = sourceAtBoundary(e.seq, mediaOf(e, R), R, cutNew); R.duration -= delta; R.start = cutNew; L.duration += delta;
+    for (const c of [L, R]) if (!clipWithinSource(c, e.seq, mediaOf(e, c))) fail('InsufficientHandle', `not enough source media to roll the cut by ${delta} on ${c.name}`, { clipId: c.id });
+    lo = Math.min(lo, endOf(L) - Math.abs(delta)); hi = Math.max(hi, endOf(L) + Math.abs(delta));
+  }
+  e.ctx.touch(e.seq.id, lo, hi); normalizeLinks(e);
+}
+
+/**
+ * Slide: move `clipId` by `delta` between its two touching neighbours; the previous clip's end and the next clip's start follow,
+ * so the three clips still fill the same span. The slid clip's source is unchanged; neighbours need handles. Both neighbours are required.
+ */
+export function slideClip(e: Edit, clipId: Id, delta: number, ignoreLinks?: boolean): void {
+  if (!Number.isSafeInteger(delta) || delta === 0) fail('InvalidArgument', 'slide needs a non-zero integer delta');
+  const members = expandLinked(e.seq, [clipId], ignoreLinks).map((c) => findClip(e.seq, c.id)); let lo = Infinity, hi = 0;
+  for (const m of members) {
+    assertUnlocked(m.track, 'slide'); const P = touching(m.track, m.clip, 'prev'), N = touching(m.track, m.clip, 'next');
+    if (!P || !N) fail('InvalidArgument', `${m.clip.name} needs a directly adjacent clip on both sides to slide`, { clipId: m.clip.id });
+    const C = m.clip; if (P!.duration + delta < 1 || N!.duration - delta < 1) fail('InvalidArgument', 'slide would make a neighbour shorter than one frame');
+    const nStart = endOf(C) + delta; N!.sourceIn = sourceAtBoundary(e.seq, mediaOf(e, N!), N!, nStart); N!.duration -= delta; N!.start = nStart; P!.duration += delta; C.start += delta;
+    for (const c of [P!, N!]) if (!clipWithinSource(c, e.seq, mediaOf(e, c))) fail('InsufficientHandle', `not enough source media on ${c.name} to slide by ${delta}`, { clipId: c.id });
+    lo = Math.min(lo, P!.start); hi = Math.max(hi, endOf(N!));
+  }
+  e.ctx.touch(e.seq.id, lo, hi); normalizeLinks(e);
+}

@@ -11,6 +11,9 @@
     "@fs/command-engine": ["./packages/command-engine/src/index.ts"],
     "@fs/media-contracts": ["./packages/media-contracts/src/index.ts"],
     "@fs/media-services": ["./packages/media-services/src/index.ts"],
+    "@fs/interchange": ["./packages/interchange/src/index.ts"],
+    "@fs/captions": ["./packages/captions/src/index.ts"],
+    "@fs/automation": ["./packages/automation/src/index.ts"],
     "@fs/playback": ["./packages/playback/src/index.ts"],
     "@fs/export-engine": ["./packages/export-engine/src/index.ts"]
   } } }

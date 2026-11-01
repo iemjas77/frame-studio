@@ -120,6 +120,24 @@ describe('UI acceptance flows', () => {
     expect(fs.statSync(dest).size).toBeGreaterThan(1000);                    // existing file untouched by the refused second export
   }, 120_000);
 
+  it('interchange via the UI shows what the format cannot carry', async () => {
+    const dest = path.join(dir, 'ui-cut.otio'); await tid('ix-dest').fill(dest); await tid('btn-otio').click(); await shows('ix-loss'); await textHas('ix-loss', 'linked A/V clips'); expect(fs.existsSync(dest)).toBe(true);
+    await tid('btn-otio').click(); await shows('ix-msg'); await textHas('ix-msg', 'already exists');
+  }, 30_000);
+
+  it('configurable shortcuts: search, conflict warning, replace, persistence across reload, no firing while the dialog is open', async () => {
+    await tid('btn-shortcuts').click(); await shows('shortcuts');
+    await tid('shortcuts-search').fill('razor'); expect((await page.$$('[data-testid^=key-]')).length).toBe(1); await tid('shortcuts-search').fill('');
+    await tid('add-toolRazor').click(); await page.keyboard.press('m'); await shows('shortcuts-clash'); await textHas('shortcuts-clash', 'Add marker');     // M is taken by Add marker
+    await page.getByRole('button', { name: 'Keep existing' }).click(); expect((await page.$$('[data-testid=shortcuts-clash]')).length).toBe(0);
+    await tid('add-toolRazor').click(); await page.keyboard.press('b'); await textHas('shortcuts-msg', 'Bound B');
+    await tid('shortcuts-close').click(); await page.locator('body').click({ position: { x: 5, y: 5 } }); await page.keyboard.press('b'); expect(await tid('tool-razor').getAttribute('class')).toMatch(/\bon\b/); await page.keyboard.press('v');
+    await open(); await page.locator('body').click({ position: { x: 5, y: 5 } }); await page.keyboard.press('b'); expect(await tid('tool-razor').getAttribute('class')).toMatch(/\bon\b/);   // persisted in localStorage
+    await page.keyboard.press('v'); await tid('btn-shortcuts').click(); await tid('add-toolRazor').click(); await page.keyboard.press('m'); await tid('shortcuts-replace').click(); await tid('shortcuts-close').click();
+    const markers = async () => (await page.$$('[data-testid=marker]')).length; const m0 = await markers(); await page.locator('body').click({ position: { x: 5, y: 5 } }); await page.keyboard.press('m'); await page.waitForTimeout(300); expect(await markers()).toBe(m0); expect(await tid('tool-razor').getAttribute('class')).toMatch(/\bon\b/);
+    await tid('btn-shortcuts').click(); await tid('shortcuts-reset').click(); await tid('shortcuts-close').click(); await page.keyboard.press('v');
+  }, 60_000);
+
   it('acceptance 5: missing media shows offline, relink refuses an imposter, accepts the identical file, edit preserved', async () => {
     const hidden = path.join(dir, 'hidden_A.mp4'); fs.renameSync(fx.A!, hidden); await open();
     await textHas('status-A_25fps_10s.mp4', 'OFFLINE'); const before = await clips();

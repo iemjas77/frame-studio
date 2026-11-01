@@ -12,6 +12,7 @@
 | vitest / fast-check | 2.1.9 / 3.23.2 | MIT | tests |
 | playwright | 1.64.1 | Apache-2.0 | UI e2e (dev only) |
 | electron | 33.4.11 | MIT (bundles Chromium + Node; see `LICENSES.chromium.html` shipped inside the package) | desktop shell |
+Dev/test-only Python tools (not shipped): `opentimelineio` 0.18.1 (Apache-2.0) and `otio-cmx3600-adapter` — used as an independent reader in `packages/interchange/test`; tests skip when absent.
 Transitive licences have **not** been audited; do it with a licence scanner before any release (Planned, M10). Lockfile: `package-lock.json`.
 
 ## 2. FFmpeg (external process today)

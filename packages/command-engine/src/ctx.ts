@@ -12,4 +12,13 @@ export class Ctx {
   touch(seqId: Id, a?: number, b?: number): void { this.touched.add(seqId); if (a !== undefined) this.lo = Math.min(this.lo, a); if (b !== undefined) this.hi = Math.max(this.hi, b); }
   dirtyRange(): { start: number; end: number } | null { return this.lo <= this.hi ? { start: this.lo, end: this.hi } : null; }
 }
-export const plain = <T>(x: T): T => structuredClone(isDraft(x) ? current(x) : x);
+/** Deep copy that unwraps immer drafts at ANY depth (a new object created earlier in the same transaction may embed draft proxies). */
+export function plain<T>(x: T): T {
+  const walk = (v: unknown): unknown => {
+    if (isDraft(v)) v = current(v);
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, w]) => [k, walk(w)]));
+    return v;
+  };
+  return walk(x) as T;
+}

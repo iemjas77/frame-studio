@@ -27,6 +27,7 @@ export const api = {
   import: (paths: string[]) => call<{ results: { path: string; ok: boolean; error?: string; warnings?: string[] }[]; state: Snapshot }>('POST', '/api/import', { paths }),
   relink: (mediaId: string, path: string, confirmLikely = false) => call<{ ok: boolean; needsConfirmation?: boolean; verdict: { verdict: string; reasons: string[] }; state: Snapshot }>('POST', '/api/relink', { mediaId, path, confirmLikely }),
   exportSeq: (sequenceId: string, dest: string, overwrite: boolean) => call<{ job: JobInfo }>('POST', '/api/export', { sequenceId, dest, overwrite }),
+  interchange: (format: 'otio' | 'edl', sequenceId: string, dest: string, overwrite: boolean) => call<{ ok: boolean; output: string; loss: { format: string; items: { feature: string; detail: string; severity: string }[] } }>('POST', '/api/interchange', { format, sequenceId, dest, overwrite }),
   cancelJob: (id: string) => call<{ ok: boolean }>('POST', `/api/jobs/${id}/cancel`, {}),
   waveform: (mediaId: string) => call<{ peaks: number[]; durationSec: number }>('GET', `/api/waveform/${mediaId}`),
   frameUrl: (kind: 'media' | 'program', id: string, frame: number, gen: number, mon: string) =>

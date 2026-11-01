@@ -78,4 +78,10 @@ describe('host workflow', () => {
     for (let i = 0; i < 80; i++) { const x = (await json('/api/jobs')).jobs.find((y: any) => y.id === j2.id); if (x.report) { j = x; break; } await new Promise((r) => setTimeout(r, 250)); }
     expect(j.report.ok === false || fs.existsSync(dest2)).toBe(true); if (!j.report.ok) expect(fs.existsSync(dest2)).toBe(false);
   }, 120_000);
+  it('interchange export writes OTIO/EDL with a loss report, refuses silent overwrite and bad extensions', async () => {
+    const dest = path.join(dir, 'cut.otio'); const r = await json('/api/interchange', { format: 'otio', sequenceId: seqId, dest }); expect(r.ok).toBe(true);
+    expect(JSON.parse(fs.readFileSync(dest, 'utf8')).OTIO_SCHEMA).toBe('Timeline.1'); expect(r.loss.items.length).toBeGreaterThan(0);
+    expect((await api('/api/interchange', { format: 'otio', sequenceId: seqId, dest })).status).toBe(400); expect((await api('/api/interchange', { format: 'edl', sequenceId: seqId, dest: path.join(dir, 'x.txt') })).status).toBe(400);
+    const e = await json('/api/interchange', { format: 'edl', sequenceId: seqId, dest: path.join(dir, 'cut.edl') }); expect(fs.readFileSync(e.output, 'utf8')).toMatch(/^TITLE: /); expect(e.loss.items.map((i: any) => i.feature).join()).toMatch(/track identity/);
+  });
 });

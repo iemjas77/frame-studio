@@ -15,7 +15,8 @@
 | Interlaced, alpha, 10-bit, HDR/log, ProRes/DNx, HEVC, camera RAW, image sequences, MXF | — | **untested** | untested | untested | do not assume support; P |
 | Hardware decode/encode | — | P | P | P | no GPU here |
 
-## 2. Interchange / loss matrix — all **Planned** (nothing is implemented). Expected fidelity per format (Researched, unverified this session):
+## 2. Interchange / loss matrix
+**Implemented and verified:** OTIO JSON *export* and CMX3600 EDL *export + cuts-only import*, each read back by an independent implementation (OpenTimelineIO 0.18.1 and its cmx_3600 adapter) with identical timing; every export returns a loss report that the UI displays. **Not implemented:** OTIO import, FCP XML/FCPXML, AAF, collection packages, `.prproj`. The table below is the *expected* capability of each format (Researched, unverified this session) — Frame Studio-side status is in the first two columns' notes above.
 | Feature | Native `.fstudio` | OTIO (JSON) | CMX3600 EDL | FCP7 XML / FCPXML | AAF | `.prproj` |
 |---|---|---|---|---|---|---|
 | Cuts/gaps, tracks | ✓ | ✓ | video/audio events, limited tracks | ✓ | ✓ | **U** |

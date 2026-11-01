@@ -42,10 +42,13 @@ On any error **the previous state object is returned unchanged** (identity-teste
 | **trim** (start/end) | non-ripple: extension limited by neighbour (`Collision`) and by source handle (`InsufficientHandle`); minimum 1 frame; linked members get the same edge delta (atomic: one failure aborts all). **Unavailable handles are rejected, not clamped, by the command**; `trimLimits()` gives UI the legal range |
 | **ripple trim** | end: shortening closes the gap (same strict blocking rule), lengthening splits/shifts others. start: clip start stays, source-in advances, later content shifts |
 | **slip** | shifts source-in under a fixed placement within handles; linked clips slip together |
+| **rolling edit** | moves the cut between a clip and the clip touching its end by ±delta; total span unchanged; linked clips with a touching cut roll too; refuses across a gap, below 1 frame, on locked tracks, or when source handles run out |
+| **slide** | moves a clip between its two touching neighbours (both required); previous clip's end and next clip's start follow; source of the slid clip unchanged; handle-checked |
+| **batch** | several commands as ONE atomic transaction / one undo entry (used by macros); nested batches refused |
 | **link / unlink** | merge / dissolve groups; singletons are dissolved |
 | **markers, in/out range, track properties** | simple commands; `out > in` enforced |
 
-**Partial selection:** a selection containing locked-track clips fails as a whole (atomic). **Planned:** rolling edit, slide, rate stretch, replace, match frame, reveal source, duplicate, extract-range, keyboard nudge, marquee.
+**Partial selection:** a selection containing locked-track clips fails as a whole (atomic). **Planned:** rate stretch, replace, match frame, reveal source, duplicate, extract-range, keyboard nudge, marquee.
 
 ## D. Monitors and seeks
 `Transport` keeps a `generation` bumped by every seek/play/pause/direction change. A frame is displayable only if `present(gen, frame)` is true; the host additionally answers `409 Stale` to superseded `(monitor, generation)` requests. Tested with scrambled completion order (unit) and rapid scrubbing in the real UI (e2e).

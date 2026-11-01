@@ -55,7 +55,7 @@ function randomCommand(e: CommandEngine, r: () => number): Command {
   const s = e.state.sequences.s1!; const pick = <T,>(a: T[]): T => a[Math.floor(r() * a.length)]!; const int = (a: number, b: number) => a + Math.floor(r() * (b - a + 1));
   const all = [...s.videoTracks, ...s.audioTracks].flatMap((t) => t.clips); const anyClip = () => (all.length ? pick(all) : null);
   const end = Math.max(0, ...all.map((c) => c.start + c.duration));
-  const choice = int(0, 14); const c = anyClip();
+  const choice = int(0, 16); const c = anyClip();
   switch (choice) {
     case 0: case 1: return { type: 'edit.insert', sequenceId: 's1', mediaId: pick(['A', 'B']), time: int(0, end), only: pick(['both', 'both', 'video', 'audio']), sourceIn: time(int(0, 20), FPS.f25), sourceOut: time(int(40, 90), FPS.f25), targets: { video: pick(['s1_V1', 's1_V2']), audio: pick(['s1_A1', 's1_A2']) } };
     case 2: case 3: return { type: 'edit.overwrite', sequenceId: 's1', mediaId: pick(['A', 'B']), time: int(0, end), only: pick(['both', 'video', 'audio']), sourceIn: time(int(0, 20), FPS.f25), sourceOut: time(int(40, 90), FPS.f25), targets: { video: pick(['s1_V1', 's1_V2']), audio: pick(['s1_A1', 's1_A2']) } };
@@ -68,6 +68,8 @@ function randomCommand(e: CommandEngine, r: () => number): Command {
     case 11: return { type: 'edit.slip', sequenceId: 's1', clipId: c?.id ?? 'x', deltaFrames: int(-10, 10) };
     case 12: return { type: 'track.set', sequenceId: 's1', trackId: pick(['s1_V1', 's1_V2', 's1_A1', 's1_A2']), patch: { locked: r() < 0.3 } };
     case 13: return { type: 'edit.removeGap', sequenceId: 's1', trackId: pick(['s1_V1', 's1_A1']), time: int(0, end), allowPartial: r() < 0.5 };
+    case 14: return { type: 'edit.rolling', sequenceId: 's1', leftClipId: c?.id ?? 'x', delta: int(-12, 12) || 1 };
+    case 15: return { type: 'edit.slide', sequenceId: 's1', clipId: c?.id ?? 'x', delta: int(-12, 12) || 1 };
     default: return { type: 'marker.add', sequenceId: 's1', marker: { time: int(0, end), duration: 0, name: 'm', color: 'c', comment: '' } };
   }
 }
@@ -137,3 +139,14 @@ describe('session: save/reopen/recover', () => {
   });
 });
 void checksumOf; void journalRead; void openProjectWithRecovery; void ovw; void ({} as ProjectDoc);
+
+describe('batch', () => {
+  it('insert + split + trim in ONE transaction works (new clips may embed draft proxies), is atomic and is one undo', () => {
+    const { e, seq } = setup(); const before = e.state; const depth = e.historyDepth;
+    e.execute({ type: 'batch', commands: [{ type: 'edit.insert', sequenceId: 's1', mediaId: 'A', time: 0 }, { type: 'edit.split', sequenceId: 's1', time: 40, allTracks: true }, { type: 'edit.split', sequenceId: 's1', time: 80, allTracks: true }] });
+    expect(seq().videoTracks[0]!.clips.length).toBe(3); expect(e.historyDepth).toBe(depth + 1); assertSynced(seq()); assertValid(e.state);
+    e.undo(); expect(e.state).toEqual(before);
+    const s1 = e.state; expect(() => e.execute({ type: 'batch', commands: [{ type: 'edit.insert', sequenceId: 's1', mediaId: 'A', time: 0 }, { type: 'edit.split', sequenceId: 's1', time: 9999, allTracks: true }] })).toThrow(CommandError); expect(e.state).toBe(s1);
+    expect(() => e.execute({ type: 'batch', commands: [{ type: 'batch', commands: [] } as never] })).toThrow(/nested/);
+  });
+});

@@ -29,6 +29,7 @@
 * Headless host binds a random port each launch; UI imports need absolute paths typed/pasted in a browser.
 
 ## Exact next tasks (dependency order)
+0. Not done from the master prompt (needs hardware/native work): M3 playback reliability, M4 render graph/GPU/effects/transitions/keyframes/titles, M5 audio engine + colour, M6 proxies/stills/image sequences/hardware encode/installer, M10 hardening; nesting, multicam, speed/rate-stretch, replace/match-frame; captions in the schema + UI + burn-in; macro UI and batch queue; FCP XML/AAF/OTIO import; workspace presets/docking; acceptance flows 3, 4, 6.
 1. **Windows verification pass** (checklist) — fix whatever it finds before new features.
 2. Open/Save As + recent projects in the Electron shell; project-level interpret-footage UI.
 3. M3: define `DecodeService`/`AudioDevice` contracts in `media-contracts`; implement a separate-process decoder (Rust `crates/decode-engine` over LGPL FFmpeg libs) with decode-ahead queues and cancellation; audio output via `cpal`; audio-led `Transport.syncTo`; metrics harness (startup/seek/dropped/underruns/drift).

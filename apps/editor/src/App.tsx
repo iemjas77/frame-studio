@@ -6,6 +6,10 @@ import { api, ApiError, type Snapshot } from './api.ts';
 import { Monitor } from './Monitor.tsx';
 import { Timeline, type Tool } from './Timeline.tsx';
 import { ExportPanel, MediaPanel } from './Panels.tsx';
+import { DEFAULT_KEYMAP, actionFor, chordFromEvent, type ActionId, type Keymap } from './keymap.ts';
+import { Shortcuts } from './Shortcuts.tsx';
+
+const loadKeymap = (): Keymap => { try { const raw = localStorage.getItem('fs.keymap'); if (raw) return { ...DEFAULT_KEYMAP, ...(JSON.parse(raw) as Partial<Keymap>) }; } catch { /* use default */ } return { ...DEFAULT_KEYMAP }; };
 
 const isTyping = (t: EventTarget | null) => { const el = t as HTMLElement | null; return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable); };
 
@@ -48,27 +52,21 @@ export function App() {
     clearMarks: () => (focus === 'source' ? (setSrcIn(null), setSrcOut(null)) : seq && run(() => api.command({ type: 'sequence.setRange', sequenceId: seq.id, inPoint: null, outPoint: null }, 'Clear range'))),
   };
   const actRef = useRef(act); actRef.current = act;
+  const [keymap, setKeymapState] = useState<Keymap>(loadKeymap); const [showKeys, setShowKeys] = useState(false);
+  const keymapRef = useRef(keymap); keymapRef.current = keymap; const setKeymap = (m: Keymap) => { setKeymapState(m); try { localStorage.setItem('fs.keymap', JSON.stringify(m)); } catch { /* storage unavailable */ } };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (isTyping(e.target)) { return; }                      // shortcuts never fire in text fields
-      const a = actRef.current; const k = e.key; const ctrl = e.ctrlKey || e.metaKey;
-      const t = mon; let handled = true;
-      if (ctrl && k.toLowerCase() === 'z') (e.shiftKey ? a.redo : a.undo)();
-      else if (ctrl && k.toLowerCase() === 'y') a.redo();
-      else if (ctrl && k.toLowerCase() === 's') a.save();
-      else if (ctrl && k.toLowerCase() === 'i') document.querySelector<HTMLTextAreaElement>('[data-testid=import-paths]')?.focus();
-      else if (ctrl && k.toLowerCase() === 'k') a.razorAtPlayhead();
-      else if (ctrl || e.altKey) handled = false;
-      else if (k === ' ') (t.state === 'playing' ? t.pause() : t.play());
-      else if (k.toLowerCase() === 'j') t.shuttle('J'); else if (k.toLowerCase() === 'k') t.shuttle('K'); else if (k.toLowerCase() === 'l') t.shuttle('L');
-      else if (k === 'ArrowLeft') t.step(e.shiftKey ? -5 : -1); else if (k === 'ArrowRight') t.step(e.shiftKey ? 5 : 1);
-      else if (k === 'Home') t.seek(0); else if (k === 'End') t.seek(10 ** 9);
-      else if (k.toLowerCase() === 'i') a.markIn(); else if (k.toLowerCase() === 'o') a.markOut(); else if (k.toLowerCase() === 'x') a.clearMarks();
-      else if (k.toLowerCase() === 'm') a.marker(); else if (k.toLowerCase() === 'v') setTool('select'); else if (k.toLowerCase() === 'c') setTool('razor');
-      else if (k === ',') insertLike('edit.insert'); else if (k === '.') insertLike('edit.overwrite');
-      else if (k === 'Delete' || k === 'Backspace') (e.shiftKey ? a.rippleDelete : a.lift)();
-      else handled = false;
-      if (handled) e.preventDefault();
+      if (isTyping(e.target) || showKeys) return;               // shortcuts never fire in text fields or while the shortcut dialog is open
+      const chord = chordFromEvent(e); if (!chord) return; const action = actionFor(keymapRef.current, chord); if (!action) return;
+      const a = actRef.current; const t = mon;
+      const table: Record<ActionId, () => void> = {
+        undo: () => void a.undo(), redo: () => void a.redo(), save: () => void a.save(), import: () => document.querySelector<HTMLTextAreaElement>('[data-testid=import-paths]')?.focus(), addEdit: () => void a.razorAtPlayhead(),
+        playPause: () => (t.state === 'playing' ? t.pause() : t.play()), shuttleBack: () => t.shuttle('J'), pause: () => t.shuttle('K'), shuttleFwd: () => t.shuttle('L'),
+        stepBack: () => void t.step(-1), stepFwd: () => void t.step(1), stepBack5: () => void t.step(-5), stepFwd5: () => void t.step(5), toStart: () => void t.seek(0), toEnd: () => void t.seek(10 ** 9),
+        markIn: () => void a.markIn(), markOut: () => void a.markOut(), clearMarks: () => void a.clearMarks(), marker: () => void a.marker(), toolSelect: () => setTool('select'), toolRazor: () => setTool('razor'),
+        insert: () => insertLike('edit.insert'), overwrite: () => insertLike('edit.overwrite'), lift: () => void a.lift(), rippleDelete: () => void a.rippleDelete(),
+      };
+      e.preventDefault(); table[action]();
     };
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
   });
@@ -96,6 +94,7 @@ export function App() {
           <button disabled={!snap.canUndo} onClick={() => act.undo()} title={`Undo ${snap.undoLabel ?? ''} (Ctrl+Z)`} data-testid="btn-undo">Undo</button>
           <button disabled={!snap.canRedo} onClick={() => act.redo()} title={`Redo ${snap.redoLabel ?? ''} (Ctrl+Shift+Z)`} data-testid="btn-redo">Redo</button>
           <button onClick={() => act.save()} title="Save (Ctrl+S)" data-testid="btn-save">Save{snap.dirty ? ' ●' : ''}</button>
+          <button onClick={() => setShowKeys(true)} title="Keyboard shortcuts" data-testid="btn-shortcuts">Shortcuts</button>
         </div>
       </header>
       {(rec.journalReplayed > 0 || rec.source !== 'main' && rec.source !== 'new' || rec.journalSkippedReason) && (
@@ -110,6 +109,7 @@ export function App() {
         <ExportPanel snap={snap} seqId={seq?.id ?? ''} setSnap={setSnap} />
         {seq && <Timeline snap={snap} seq={seq} transport={program} selection={selection} setSelection={setSelection} tool={tool} snapping={snapping} ripple={ripple} run={run} setHint={setHint} setSnap={setSnap} playhead={0} />}
       </main>
+      {showKeys && <Shortcuts map={keymap} setMap={setKeymap} close={() => setShowKeys(false)} />}
       <footer className="status" data-testid="status"><span data-testid="hint" className={hint ? 'warn' : 'muted'}>{hint ?? 'Ready'}</span><span className="muted">Rev {snap.revision} · {snap.file} · {focus} monitor focused · audio preview not available in this build</span></footer>
     </div>
   );

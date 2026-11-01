@@ -16,6 +16,7 @@ import { SequentialFrameSource, assessIdentity, decodeFrameJpeg, probeMedia, toM
 import { MediaError } from '@fs/media-contracts';
 import { exportSequence, ExportError } from '@fs/export-engine';
 import { videoLayersAt } from '@fs/playback';
+import { exportEdl, exportOtio } from '@fs/interchange';
 import type { ExportProgress, ExportReport } from '@fs/media-contracts';
 
 export interface HostOptions { projectFile: string; staticDir?: string; token?: string; port?: number; newProjectName?: string }
@@ -176,6 +177,17 @@ export async function startHost(opts: HostOptions) {
       case 'POST /api/import': { const b = await readBody(req); const results = await importPaths(Array.isArray(b.paths) ? b.paths.slice(0, 500) : []); return send(res, 200, { results, state: stateJson() }); }
       case 'POST /api/relink': { const b = await readBody(req); const r = await relink(String(b.mediaId), String(b.path), b.confirmLikely === true); return send(res, 200, { ...r, state: stateJson() }); }
       case 'POST /api/export': { const b = await readBody(req); const j = startExport(b); return send(res, 200, { job: jobJson(j) }); }
+      case 'POST /api/interchange': {
+        const b = await readBody(req); const doc = engine.state; const seq = String(b.sequenceId); if (!doc.sequences[seq]) throw new CommandError('NotFound', 'sequence not found');
+        const fmt = b.format === 'edl' ? 'edl' : b.format === 'otio' ? 'otio' : null; if (!fmt) throw new CommandError('InvalidArgument', 'format must be otio or edl');
+        const dest = path.resolve(String(b.dest)); const ext = fmt === 'edl' ? '.edl' : '.otio';
+        if (!dest.toLowerCase().endsWith(ext)) throw new CommandError('InvalidArgument', `destination must end with ${ext}`);
+        if (!fs.existsSync(path.dirname(dest))) throw new CommandError('InvalidArgument', 'destination folder does not exist');
+        if (fs.existsSync(dest) && b.overwrite !== true) throw new CommandError('InvalidArgument', `${dest} already exists; choose another name or confirm overwrite`);
+        const out = fmt === 'edl' ? (() => { const r = exportEdl(doc, seq); return { text: r.edl, loss: r.loss }; })() : (() => { const r = exportOtio(doc, seq); return { text: r.json, loss: r.loss }; })();
+        const tmp = `${dest}.part-${process.pid}`; fs.writeFileSync(tmp, out.text); fs.renameSync(tmp, dest);
+        return send(res, 200, { ok: true, output: dest, loss: out.loss });
+      }
       case 'GET /api/jobs': return send(res, 200, { jobs: [...jobs.values()].map(jobJson) });
       default: {
         const c = /^POST \/api\/jobs\/([\w-]+)\/cancel$/.exec(route); if (c) { jobs.get(c[1]!)?.abort.abort(); return send(res, 200, { ok: true }); }

@@ -63,7 +63,8 @@ export function MediaPanel({ snap, selectedId, onSelect, run, setSnap, setHint }
 }
 
 export function ExportPanel({ snap, seqId, setSnap }: { snap: Snapshot; seqId: string; setSnap: (s: Snapshot) => void }) {
-  const [dest, setDest] = useState(''); const [overwrite, setOverwrite] = useState(false); const [msg, setMsg] = useState('');
+  const [dest, setDest] = useState(''); const [overwrite, setOverwrite] = useState(false); const [msg, setMsg] = useState(''); const [ixDest, setIxDest] = useState(''); const [loss, setLoss] = useState<{ format: string; out: string; items: { feature: string; detail: string; severity: string }[] } | null>(null); const [ixMsg, setIxMsg] = useState('');
+  const ix = async (format: 'otio' | 'edl') => { try { const r = await api.interchange(format, seqId, ixDest.trim(), overwrite); setLoss({ format: r.loss.format, out: r.output, items: r.loss.items }); setIxMsg(''); } catch (e) { setLoss(null); setIxMsg(e instanceof ApiError ? `${e.code}: ${e.message}` : String(e)); } };
   const start = async () => { try { await api.exportSeq(seqId, dest.trim(), overwrite); setMsg(''); setSnap(await api.state()); } catch (e) { setMsg(e instanceof ApiError ? `${e.code}: ${e.message}` : String(e)); } };
   return (
     <section className="panel export" data-testid="export-panel">
@@ -74,6 +75,12 @@ export function ExportPanel({ snap, seqId, setSnap }: { snap: Snapshot; seqId: s
         <button onClick={start} data-testid="btn-export">Export H.264 / AAC MP4</button>
         <div className="muted">Sequence in/out range if set. Output is verified by decoding it back; colour is untagged/unmanaged.</div>
         {msg && <div className="warn" data-testid="export-msg">{msg}</div>}
+      </div>
+      <div className="exportform">
+        <input placeholder="Interchange file, e.g. /home/me/cut.otio or cut.edl" value={ixDest} onChange={(e) => setIxDest(e.target.value)} data-testid="ix-dest" aria-label="Interchange destination" />
+        <div><button onClick={() => ix('otio')} data-testid="btn-otio">Export OTIO</button> <button onClick={() => ix('edl')} data-testid="btn-edl">Export EDL</button></div>
+        {ixMsg && <div className="warn" data-testid="ix-msg">{ixMsg}</div>}
+        {loss && <div data-testid="ix-loss"><div className="ok">Wrote {loss.out} ({loss.format}). What this format cannot carry:</div><ul className="checks">{loss.items.map((i, k) => <li key={k}>[{i.severity}] <b>{i.feature}</b>: <span className="muted">{i.detail}</span></li>)}</ul></div>}
       </div>
       <ul className="jobs" data-testid="jobs">
         {snap.jobs.slice().reverse().map((j) => (

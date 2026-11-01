@@ -26,15 +26,19 @@ export type Command =
   | { type: 'edit.move'; sequenceId: Id; clipIds: Id[]; deltaFrames: number; trackDelta?: { video?: number; audio?: number }; mode?: 'strict' | 'overwrite'; ignoreLinks?: boolean }
   | { type: 'edit.trim'; sequenceId: Id; clipId: Id; edge: 'start' | 'end'; toTime: number; ripple?: boolean; ignoreLinks?: boolean; allowPartial?: boolean }
   | { type: 'edit.slip'; sequenceId: Id; clipId: Id; deltaFrames: number; ignoreLinks?: boolean }
+  | { type: 'edit.rolling'; sequenceId: Id; leftClipId: Id; delta: number; ignoreLinks?: boolean }
+  | { type: 'edit.slide'; sequenceId: Id; clipId: Id; delta: number; ignoreLinks?: boolean }
   | { type: 'edit.link'; sequenceId: Id; clipIds: Id[] }
   | { type: 'edit.unlink'; sequenceId: Id; clipIds: Id[] }
   | { type: 'marker.add'; sequenceId: Id; marker: Omit<Marker, 'id'> & { id?: Id } }
   | { type: 'marker.remove'; sequenceId: Id; markerId: Id }
-  | { type: 'marker.move'; sequenceId: Id; markerId: Id; time: number };
+  | { type: 'marker.move'; sequenceId: Id; markerId: Id; time: number }
+  /** Several commands as ONE atomic transaction / one history entry (used by macros). Nested batches are refused. */
+  | { type: 'batch'; commands: Command[] };
 
 export const COMMAND_TYPES = ['media.add', 'media.update', 'media.remove', 'bin.create', 'sequence.create', 'sequence.activate', 'sequence.setRange', 'track.add', 'track.set',
-  'edit.insert', 'edit.overwrite', 'edit.append', 'edit.split', 'edit.lift', 'edit.rippleDelete', 'edit.removeGap', 'edit.move', 'edit.trim', 'edit.slip', 'edit.link', 'edit.unlink',
-  'marker.add', 'marker.remove', 'marker.move'] as const;
+  'edit.insert', 'edit.overwrite', 'edit.append', 'edit.split', 'edit.lift', 'edit.rippleDelete', 'edit.removeGap', 'edit.move', 'edit.trim', 'edit.slip', 'edit.rolling', 'edit.slide', 'edit.link', 'edit.unlink',
+  'marker.add', 'marker.remove', 'marker.move', 'batch'] as const;
 
 const seqOf = (p: ProjectDoc, id: Id): Sequence => p.sequences[id] ?? fail('NotFound', `sequence ${id} not found`);
 
@@ -43,6 +47,10 @@ export function applyCommand(p: ProjectDoc, cmd: Command, ctx: Ctx): void {
   if (!cmd || !(COMMAND_TYPES as readonly string[]).includes(cmd.type)) fail('InvalidArgument', `unknown command type ${(cmd as { type?: string })?.type}`);
   const ed = (sequenceId: Id): E.Edit => ({ seq: seqOf(p, sequenceId), ctx, media: (id) => p.mediaPool[id] ?? fail('NotFound', `media ${id} not found`) });
   switch (cmd.type) {
+    case 'batch':
+      if (!Array.isArray(cmd.commands) || cmd.commands.length === 0 || cmd.commands.length > 1000) fail('InvalidArgument', 'batch needs 1..1000 commands');
+      for (const c of cmd.commands) { if (c?.type === 'batch') fail('InvalidArgument', 'nested batch is not allowed'); applyCommand(p, c, ctx); }
+      return;
     case 'media.add':
       if (p.mediaPool[cmd.media.id]) fail('InvalidArgument', `media ${cmd.media.id} already exists`);
       p.mediaPool[cmd.media.id] = cmd.media; p.mediaOrder.push(cmd.media.id); return;
@@ -86,6 +94,8 @@ export function applyCommand(p: ProjectDoc, cmd: Command, ctx: Ctx): void {
     case 'edit.move': E.moveClips(ed(cmd.sequenceId), cmd); return;
     case 'edit.trim': E.trimClip(ed(cmd.sequenceId), cmd); return;
     case 'edit.slip': E.slipClips(ed(cmd.sequenceId), cmd.clipId, cmd.deltaFrames, cmd.ignoreLinks); return;
+    case 'edit.rolling': E.rollingEdit(ed(cmd.sequenceId), cmd.leftClipId, cmd.delta, cmd.ignoreLinks); return;
+    case 'edit.slide': E.slideClip(ed(cmd.sequenceId), cmd.clipId, cmd.delta, cmd.ignoreLinks); return;
     case 'edit.link': E.linkClips(ed(cmd.sequenceId), cmd.clipIds); return;
     case 'edit.unlink': E.unlinkClips(ed(cmd.sequenceId), cmd.clipIds); return;
     case 'marker.add': { const s = seqOf(p, cmd.sequenceId); s.markers.push({ ...cmd.marker, id: cmd.marker.id ?? ctx.newId('marker') }); s.markers.sort((a, b) => a.time - b.time); ctx.touch(s.id); return; }

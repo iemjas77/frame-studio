@@ -2,7 +2,7 @@
 
 Classes: **IV** Implemented and verified · **IL** Implemented with limitations · **R** Researched (not built) · **P** Planned · **U** Unsupported (explicitly not offered).
 "Verified" means an automated test in this repo passes **in the Linux cloud container** (no GPU, no audio device, no Windows). Anything that only a Windows desktop, GPU or sound card can confirm is listed in `handover/unverified-on-windows.md`.
-Test counts: see `roadmap/test-results.md`.
+Test counts: see `roadmap/test-results.md` (158 passing).
 
 ## M1 – editorial foundation
 | Capability | Class | Evidence / limitation |
@@ -19,7 +19,8 @@ Test counts: see `roadmap/test-results.md`.
 | Command engine: validated atomic commands, exact undo/redo, gestures (1 history entry), bounded history, rollback | IV | engine tests + 60 randomized runs/CI (500 runs × 80 ops manually, no failures) |
 | Insert, overwrite, append, split/razor, lift, ripple delete, remove gap, move, trim, ripple trim, slip, link/unlink, markers, track props | IV | `command-engine/test` |
 | Locked-track / sync-lock / linked-media / source-bounds rules | IV | dedicated tests incl. blocked-ripple and locked-sync-lock conflict |
-| Rolling edit, slide, rate stretch, replace, match frame, reveal source, duplicate | P | M7 |
+| Rolling edit, slide (linked-aware, handle-checked, in randomized model test) | IV (commands) / P (no UI gesture yet) | `edit.test.ts`, 300-seed model run |
+| Rate stretch, replace, match frame, reveal source, duplicate | P | M7 |
 | Nested sequences, multicam | P | model has no nested clips yet (M7) |
 | Transitions, effects, keyframes, titles, captions | P | not in model v1 |
 
@@ -40,13 +41,18 @@ Test counts: see `roadmap/test-results.md`.
 | Export validation: container, streams, resolution, rate, frame count, audio format/duration/sample count, full decode, content oracle | IV | damaged-file test proves validator independence from exit code |
 | Electron shell: no Node in renderer, context isolation, sandbox flag, preload bridge of 2 functions, popup/navigation/foreign-network denied | IL | verified on Linux/Xvfb with `--no-sandbox` (container root); Windows + OS sandbox unverified |
 | Engine host API (token, origin/host checks, CSP, body limits, path validation) | IV | integration tests |
-| Keyboard preset (V C Space J K L I O M arrows Ctrl+Z/Shift+Z/S/I, `,` `.` Delete Shift+Delete Ctrl+K) | IL | works; **not claimed Premiere-compatible** (docs not reachable this session) ; no remapping UI, no conflict detection |
+| Keyboard preset + **remapping dialog** (search, conflict detection with explicit replace, import/export with validation, persisted) | IV | keymap unit tests + UI e2e. **Not claimed Premiere-compatible** (docs unreachable) |
 | Audio playback / meters / mixing preview | P | M5 (no audio device here) |
 | Hardware/GPU decode, render, GPU compositor | P | none implemented. The UI is **CPU-decoded JPEG drawn to a 2D canvas**; nothing is GPU-accelerated by us |
 | Proxy create/attach/toggle, proxy ↔ source mapping | P | `ProxyRef` exists in the schema only |
-| Batch/actions/macros, watch folders, background transcode | P | M9 |
+| Macros: versioned allowlisted data-only steps, parameter substitution, record/replay, one undoable atomic transaction, hostile-input rejection | IV (library + `batch` command) | `automation/test`. **No macro UI**, no batch job queue (proxies/transcodes/loudness) → P |
+| Watch folders, background transcode, batch deliveries | P | M9 |
 | Image sequences, stills, camera-card structures, spanned clips | P | |
-| Interchange (OTIO, EDL, FCP XML, AAF), captions SRT/VTT | P | researched only (`compatibility/07`) |
+| OTIO JSON export + explicit loss report | IV (export) | read back by **independent OpenTimelineIO 0.18**: identical clip/gap/time ranges in seconds, markers, duration; no import yet |
+| CMX3600 EDL export + import (cuts only) + loss report | IV (export, cuts) | read by OTIO's `cmx_3600` adapter with identical source/duration; own parser round-trips; transitions/speed not supported and reported |
+| Export from the UI/host with no silent overwrite, loss report shown | IV | host + UI e2e |
+| FCP XML / FCPXML / AAF, OTIO import, collection packages | P / R | not started |
+| SRT / WebVTT parse, write, validate (overlap, speed, width), cue split/merge/trim, ms↔frame conversion | IV (library) | `captions/test` incl. property round trips. **Not in the project schema, not in the UI, no burn-in, no text shaping/bidi rendering** → P |
 | `.prproj` import/export | U | no claim, no adapter |
 | HDR, colour management, LUTs, scopes | P | |
 | Auto-transcription | P | evaluation first |
